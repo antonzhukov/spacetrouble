@@ -2,6 +2,8 @@ package entity
 
 import "time"
 
+type Launches []*Launch
+
 // Launch describes the entity as defined in
 // https://github.com/r-spacex/SpaceX-API/blob/master/docs/launches/v4/all.md
 type Launch struct {

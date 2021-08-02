@@ -83,8 +83,8 @@ type mockLaunchProvider struct {
 	launches []*entity.Launch
 }
 
-func (m *mockLaunchProvider) GetLaunches() []*entity.Launch {
-	return m.launches
+func (m *mockLaunchProvider) GetLaunches() (entity.Launches, error) {
+	return m.launches, nil
 }
 
 type mockBookingStore struct {
