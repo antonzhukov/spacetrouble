@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/antonzhukov/spacetrouble/internal/booking"
 	"github.com/antonzhukov/spacetrouble/internal/entity"
 	"github.com/antonzhukov/spacetrouble/internal/launch"
@@ -12,21 +14,30 @@ import (
 )
 
 type BookingCenter struct {
+	logger   *zap.Logger
 	launches launch.Provider
 	store    booking.Store
 }
 
+func NewBookingCenter(logger *zap.Logger, launches launch.Provider, store booking.Store) *BookingCenter {
+	return &BookingCenter{
+		logger:   logger,
+		launches: launches,
+		store:    store,
+	}
+}
+
 // AddBooking adds a new booking in case flight operate criteria are met
-func (m *BookingCenter) AddBooking(b *entity.Booking) error {
+func (bc *BookingCenter) AddBooking(b *entity.Booking) error {
 	if b == nil {
 		return errors.New("booking is empty")
 	}
 
-	if !m.isLaunchPossible(b.LaunchDate, b.LaunchpadID) {
+	if !bc.isLaunchPossible(b.LaunchDate, b.LaunchpadID) {
 		return fmt.Errorf("launch is cancelled at %s", b.LaunchDate.String())
 	}
 
-	err := m.store.Add(b)
+	err := bc.store.Add(b)
 	if err != nil {
 		return errors.Wrap(err, "storing booking failed")
 	}
@@ -34,11 +45,20 @@ func (m *BookingCenter) AddBooking(b *entity.Booking) error {
 	return nil
 }
 
+func (bc *BookingCenter) GetBookings() ([]*entity.Booking, error) {
+	return bc.store.GetAll()
+}
+
 // isLaunchPossible finds if a flight on a given day can take place from a given launchpad
 // going through existing competitor launches and checking if there's conflict
-func (m *BookingCenter) isLaunchPossible(date time.Time, launchpad string) bool {
+func (bc *BookingCenter) isLaunchPossible(date time.Time, launchpad string) bool {
 	date = date.Truncate(24 * time.Hour)
-	for _, l := range m.launches.GetLaunches() {
+	ll, err := bc.launches.GetLaunches()
+	if err != nil {
+		bc.logger.Info("GetLaunches failed", zap.Error(err))
+		return false
+	}
+	for _, l := range ll {
 		if l == nil {
 			continue
 		}

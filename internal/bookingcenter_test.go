@@ -4,6 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+
+	"go.uber.org/zap"
+
 	"github.com/antonzhukov/spacetrouble/internal/entity"
 	"github.com/pkg/errors"
 )
@@ -68,11 +72,12 @@ func TestBookingsCenter_AddBooking(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &BookingCenter{
-				launches: &mockLaunchProvider{launches: tt.launches},
-				store:    &mockBookingStore{addErr: tt.bookingAddErr},
-			}
-			if err := m.AddBooking(tt.b); (err != nil) != tt.wantErr {
+			bc := NewBookingCenter(
+				zap.L(),
+				&mockLaunchProvider{launches: tt.launches},
+				&mockBookingStore{addErr: tt.bookingAddErr},
+			)
+			if err := bc.AddBooking(tt.b); (err != nil) != tt.wantErr {
 				t.Errorf("AddBooking() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -88,14 +93,20 @@ func (m *mockLaunchProvider) GetLaunches() (entity.Launches, error) {
 }
 
 type mockBookingStore struct {
-	addErr bool
+	bookings []*entity.Booking
+	addErr   bool
 }
 
 func (m *mockBookingStore) Add(b *entity.Booking) error {
 	if m.addErr {
 		return errors.New("failed")
 	}
+	m.bookings = append(m.bookings, b)
 	return nil
+}
+
+func (m *mockBookingStore) GetAll() ([]*entity.Booking, error) {
+	return m.bookings, nil
 }
 
 func TestBookingsCenter_IsLaunchPossible(t *testing.T) {
@@ -127,11 +138,61 @@ func TestBookingsCenter_IsLaunchPossible(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &BookingCenter{
-				launches: &mockLaunchProvider{launches: tt.launches},
-			}
-			if got := m.isLaunchPossible(tt.date, tt.launchpad); got != tt.want {
+			bc := NewBookingCenter(
+				zap.L(),
+				&mockLaunchProvider{launches: tt.launches},
+				nil,
+			)
+			if got := bc.isLaunchPossible(tt.date, tt.launchpad); got != tt.want {
 				t.Errorf("isLaunchPossible() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBookingCenter_GetBookings(t *testing.T) {
+	tests := []struct {
+		name     string
+		bookings []*entity.Booking
+		want     []*entity.Booking
+		wantErr  bool
+	}{
+		{
+			"empty",
+			nil,
+			nil,
+			false,
+		},
+		{
+			"with values",
+			[]*entity.Booking{
+				{FirstName: "Anton", LaunchpadID: "launchpad-100"},
+				{FirstName: "Viktor", LaunchpadID: "launchpad-101"},
+				{FirstName: "Theodor", LaunchpadID: "launchpad-102"},
+			},
+			[]*entity.Booking{
+				{FirstName: "Anton", LaunchpadID: "launchpad-100"},
+				{FirstName: "Viktor", LaunchpadID: "launchpad-101"},
+				{FirstName: "Theodor", LaunchpadID: "launchpad-102"},
+			},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &mockBookingStore{}
+			bc := NewBookingCenter(zap.L(), &mockLaunchProvider{}, store)
+			for _, b := range tt.bookings {
+				bc.AddBooking(b)
+			}
+
+			got, err := bc.GetBookings()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetBookings() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !cmp.Equal(got, tt.want) {
+				t.Errorf("GetBookings() got failed, %s", cmp.Diff(got, tt.want))
 			}
 		})
 	}
