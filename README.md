@@ -6,7 +6,7 @@ The solution implements 2 endpoints: add booking, get all bookings.
 ## Install and run
 
     make build
-    docker-compose up --build
+    docker-compose up --build -d
 
 ## API
 The server exposes /bookings endpoint:
