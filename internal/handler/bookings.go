@@ -43,10 +43,10 @@ func (h Booking) AddBooking(w http.ResponseWriter, r *http.Request) {
 	// add booking
 	err = h.center.AddBooking(b)
 	if err != nil {
-		h.logger.Info("AddBooking failed", zap.Error(err))
 		if err == internal.FlightCancelledErr {
 			http.Error(w, "flight cancelled", http.StatusBadRequest)
 		} else {
+			h.logger.Info("AddBooking failed", zap.Error(err))
 			http.Error(w, "booking procedure failed", http.StatusInternalServerError)
 		}
 		return
