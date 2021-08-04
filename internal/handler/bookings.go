@@ -27,7 +27,7 @@ func (h Booking) AddBooking(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&b)
 	if err != nil {
 		h.logger.Info("json.Decode failed", zap.Error(err))
-		http.Error(w, "failed to decode json", http.StatusInternalServerError)
+		http.Error(w, "failed to decode json", http.StatusBadRequest)
 		return
 	}
 

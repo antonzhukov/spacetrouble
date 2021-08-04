@@ -38,7 +38,7 @@ func (p *Postgres) GetAll() ([]*entity.Booking, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Query failed")
 	}
-	var res []*entity.Booking
+	res := make([]*entity.Booking, 0)
 	for it.Next() {
 		b := &entity.Booking{}
 		err = it.Scan(

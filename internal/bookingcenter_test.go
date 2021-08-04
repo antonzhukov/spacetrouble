@@ -4,12 +4,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/antonzhukov/spacetrouble/internal/mocks"
+
 	"github.com/google/go-cmp/cmp"
 
 	"go.uber.org/zap"
 
 	"github.com/antonzhukov/spacetrouble/internal/entity"
-	"github.com/pkg/errors"
 )
 
 func TestBookingsCenter_AddBooking(t *testing.T) {
@@ -74,39 +75,14 @@ func TestBookingsCenter_AddBooking(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bc := NewBookingCenter(
 				zap.L(),
-				&mockLaunchProvider{launches: tt.launches},
-				&mockBookingStore{addErr: tt.bookingAddErr},
+				&mocks.LaunchProvider{Launches: tt.launches},
+				&mocks.BookingStore{AddErr: tt.bookingAddErr},
 			)
 			if err := bc.AddBooking(tt.b); (err != nil) != tt.wantErr {
 				t.Errorf("AddBooking() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
-}
-
-type mockLaunchProvider struct {
-	launches []*entity.Launch
-}
-
-func (m *mockLaunchProvider) GetLaunches() (entity.Launches, error) {
-	return m.launches, nil
-}
-
-type mockBookingStore struct {
-	bookings []*entity.Booking
-	addErr   bool
-}
-
-func (m *mockBookingStore) Add(b *entity.Booking) error {
-	if m.addErr {
-		return errors.New("failed")
-	}
-	m.bookings = append(m.bookings, b)
-	return nil
-}
-
-func (m *mockBookingStore) GetAll() ([]*entity.Booking, error) {
-	return m.bookings, nil
 }
 
 func TestBookingsCenter_IsLaunchPossible(t *testing.T) {
@@ -140,7 +116,7 @@ func TestBookingsCenter_IsLaunchPossible(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bc := NewBookingCenter(
 				zap.L(),
-				&mockLaunchProvider{launches: tt.launches},
+				&mocks.LaunchProvider{Launches: tt.launches},
 				nil,
 			)
 			if got := bc.isLaunchPossible(tt.date, tt.launchpad); got != tt.want {
@@ -160,7 +136,7 @@ func TestBookingCenter_GetBookings(t *testing.T) {
 		{
 			"empty",
 			nil,
-			nil,
+			[]*entity.Booking{},
 			false,
 		},
 		{
@@ -171,17 +147,17 @@ func TestBookingCenter_GetBookings(t *testing.T) {
 				{FirstName: "Theodor", LaunchpadID: "launchpad-102"},
 			},
 			[]*entity.Booking{
-				{FirstName: "Anton", LaunchpadID: "launchpad-100"},
-				{FirstName: "Viktor", LaunchpadID: "launchpad-101"},
-				{FirstName: "Theodor", LaunchpadID: "launchpad-102"},
+				{ID: 1, FirstName: "Anton", LaunchpadID: "launchpad-100"},
+				{ID: 2, FirstName: "Viktor", LaunchpadID: "launchpad-101"},
+				{ID: 3, FirstName: "Theodor", LaunchpadID: "launchpad-102"},
 			},
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			store := &mockBookingStore{}
-			bc := NewBookingCenter(zap.L(), &mockLaunchProvider{}, store)
+			store := &mocks.BookingStore{}
+			bc := NewBookingCenter(zap.L(), &mocks.LaunchProvider{}, store)
 			for _, b := range tt.bookings {
 				bc.AddBooking(b)
 			}
