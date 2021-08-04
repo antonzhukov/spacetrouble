@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"fmt"
 	"time"
 
 	"go.uber.org/zap"
@@ -12,6 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 )
+
+var FlightCancelledErr = errors.New("flight cancelled")
 
 type BookingCenter struct {
 	logger   *zap.Logger
@@ -34,7 +35,7 @@ func (bc *BookingCenter) AddBooking(b *entity.Booking) error {
 	}
 
 	if !bc.isLaunchPossible(b.LaunchDate, b.LaunchpadID) {
-		return fmt.Errorf("launch is cancelled at %s", b.LaunchDate.String())
+		return FlightCancelledErr
 	}
 
 	err := bc.store.Add(b)
